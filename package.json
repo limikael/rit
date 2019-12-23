@@ -1,0 +1,20 @@
+{
+  "name": "rcrepo",
+  "version": "1.0.0",
+  "description": "",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "rcrepo": "./bin/rcrepo"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "minimatch": "^3.0.4",
+    "minimist": "^1.2.0"
+  }
+}
