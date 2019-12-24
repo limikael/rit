@@ -51,21 +51,21 @@ class RcRepo {
 		}
 	}
 
-	loadLocalRevision() {
-		return Revision.load(this.findRepoDir());
+	async loadLocalRevision() {
+		return await Revision.load(this.findRepoDir());
 	}
 
 	getRepoStatusDir() {
 		return this.findRepoDir()+"/.rcrepo";
 	}
 
-	makeBase() {
-		let localRevision=Revision.load(this.findRepoDir());
+	async makeBase() {
+		let localRevision=await Revision.load(this.findRepoDir());
 		localRevision.saveJson(this.getRepoStatusDir()+"/base-revision.json");
 	}
 
-	localStatus(options) {
-		let localRevision=Revision.load(this.findRepoDir());
+	async localStatus(options) {
+		let localRevision=await Revision.load(this.findRepoDir());
 		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
 		let names=Revision.allFileNames([localRevision,baseRevision]);
 
@@ -74,16 +74,20 @@ class RcRepo {
 			if (status!="up-to-date" || options.all)
 				console.log("  "+this.statusChars[status]+"  "+name);
 		}
+
+		console.log("Files: "+names.length);
 	}
 
-	status(options) {
-		let localRevision=Revision.load(this.findRepoDir());
+	async status(options) {
+		let start=new Date();
+		let localRevision=await Revision.load(this.findRepoDir());
 		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
 
 		let remoteRevisions=[];
 		for (let remote of this.getRemotes())
 			remoteRevisions.push(Revision.load(remote.getRclonePath()));		
 
+		remoteRevisions=await Promise.all(remoteRevisions);
 		let names=Revision.allFileNames([localRevision,baseRevision,...remoteRevisions]);
 
 		for (let name of names) {
@@ -108,13 +112,16 @@ class RcRepo {
 			if (options.all || haveDirty)
 				console.log(s);
 		}
+
+		let time=new Date()-start;
+		console.log("Files: "+names.length+", Time: "+(time/1000)+"s");
 	}
 
-	init(options) {
-		let localRevision=Revision.load(this.findRepoDir());
+	async fill(options) {
+		let localRevision=await Revision.load(this.findRepoDir());
 		let remoteRevisions=[];
 		for (let remote of this.getRemotes())
-			remoteRevisions.push(Revision.load(remote.getRclonePath()));		
+			remoteRevisions.push(await Revision.load(remote.getRclonePath()));		
 
 		let allRevisions=[localRevision,...remoteRevisions]
 		let names=Revision.allFileNames(allRevisions);
@@ -127,7 +134,7 @@ class RcRepo {
 				console.log("  <- "+index+"  "+name);
 
 				if (!options["dry-run"])
-					latestRevision.copyTo(name,localRevision);
+					await latestRevision.copyTo(name,localRevision);
 			}
 
 			for (let revision of remoteRevisions) {
@@ -136,7 +143,7 @@ class RcRepo {
 					console.log("  -> "+index+"  "+name);
 
 					if (!options["dry-run"])
-						localRevision.copyTo(name,revision);
+						await localRevision.copyTo(name,revision);
 				}
 			}
 		}

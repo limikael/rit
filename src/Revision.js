@@ -2,14 +2,18 @@ const child_process=require("child_process");
 const fs=require("fs");
 const path=require("path");
 const Minimatch=require("minimatch").Minimatch;
+const Cmd=require("./Cmd");
 
 function escapeShellArg (arg) {
     return `'${arg.replace(/'/g, `'\\''`)}'`;
 }
 
 class Revision {
-	static load(rclonePath) {
-		let json=child_process.execSync("rclone lsjson -R "+rclonePath).toString();
+	static async load(rclonePath) {
+		let json=await new Cmd("rclone")
+			.arg("lsjson","-R",rclonePath)
+			.run();
+
 		let revision=new Revision();
 		revision.data=JSON.parse(json);
 		revision.filterData();
@@ -31,12 +35,12 @@ class Revision {
 		return revision;
 	}
 
-	copyTo(filePath, revision) {
-		let cmd="rclone copy "+
-			escapeShellArg(this.rclonePath+"/"+filePath)+
-			" "+
-			escapeShellArg(revision.rclonePath+"/"+path.dirname(filePath));
-		child_process.execSync(cmd);
+	async copyTo(filePath, revision) {
+		await new Cmd("rclone")
+			.arg("copy")
+			.arg(this.rclonePath+"/"+filePath)
+			.arg(revision.rclonePath+"/"+path.dirname(filePath))
+			.run();
 	}
 
 	saveJson(fn) {

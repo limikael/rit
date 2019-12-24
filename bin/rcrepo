@@ -3,39 +3,43 @@
 const minimist=require('minimist');
 const RcRepo=require("../src/RcRepo");
 
-let argv=minimist(process.argv.slice(2));
-let rcRepo=new RcRepo();
+async function main() {
+	let argv=minimist(process.argv.slice(2));
+	let rcRepo=new RcRepo();
 
-switch (argv._[0]) {
-	case "info":
-		rcRepo.info();
-		break;
+	switch (argv._[0]) {
+		case "info":
+			await rcRepo.info();
+			break;
 
-	case "mkbase":
-		rcRepo.makeBase();
-		break;
+		case "mkbase":
+			await rcRepo.makeBase();
+			break;
 
-	case "lstatus":
-		rcRepo.localStatus(argv);
-		break;
+		case "lstatus":
+			await rcRepo.localStatus(argv);
+			break;
 
-	case "status":
-		rcRepo.status(argv);
-		break;
+		case "status":
+			await rcRepo.status(argv);
+			break;
 
-	case "init":
-		rcRepo.init(argv);
-		break;
+		case "fill":
+			await rcRepo.fill(argv);
+			break;
 
-	default:
-		console.log("rcrepo - Sync local and remote repositories of files using rclone.");
-		console.log("Usage: rcrepo <command> [options]");
-		console.log("");
-		console.log("Commands:");
-		console.log("  info       - Show info about local repo.");
-		console.log("  resetbase  - Make base revision from local files. Discards the old base rev.");
-		console.log("  lstatus    - Show status of local files.");
-		console.log("  status     - Show status of local and remote files.");
-		console.log("  init       - Init missing files across remotes.")
-		break;
+		default:
+			console.log("rcrepo - Sync local and remote repositories of files using rclone.");
+			console.log("Usage: rcrepo <command> [options]");
+			console.log("");
+			console.log("Commands:");
+			console.log("  info       - Show info about local repo.");
+			console.log("  resetbase  - Make base revision from local files. Discards the old base rev.");
+			console.log("  lstatus    - Show status of local files.");
+			console.log("  status     - Show status of local and remote files.");
+			console.log("  fill       - Fill in missing files across remotes.")
+			break;
+	}
 }
+
+main();
