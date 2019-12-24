@@ -9,6 +9,7 @@ class RcRepo {
 		this.statusChars={
 			"new": "N",
 			"missing": "X",
+			"deleted": "D",
 			"modified": "M",
 			"up-to-date": "-"
 		}
@@ -78,16 +79,19 @@ class RcRepo {
 		console.log("Files: "+names.length);
 	}
 
-	async status(options) {
-		let start=new Date();
-		let localRevision=await Revision.load(this.findRepoDir());
-		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
-
+	async loadRemoteRevisions() {
 		let remoteRevisions=[];
 		for (let remote of this.getRemotes())
 			remoteRevisions.push(Revision.load(remote.getRclonePath()));		
 
-		remoteRevisions=await Promise.all(remoteRevisions);
+		return await Promise.all(remoteRevisions);
+	}
+
+	async status(options) {
+		let start=new Date();
+		let localRevision=await Revision.load(this.findRepoDir());
+		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
+		let remoteRevisions=await this.loadRemoteRevisions();
 		let names=Revision.allFileNames([localRevision,baseRevision,...remoteRevisions]);
 
 		for (let name of names) {
@@ -118,16 +122,14 @@ class RcRepo {
 	}
 
 	async fill(options) {
+		let start=new Date();
 		let localRevision=await Revision.load(this.findRepoDir());
-		let remoteRevisions=[];
-		for (let remote of this.getRemotes())
-			remoteRevisions.push(await Revision.load(remote.getRclonePath()));		
-
+		let remoteRevisions=await this.loadRemoteRevisions();
 		let allRevisions=[localRevision,...remoteRevisions]
 		let names=Revision.allFileNames(allRevisions);
 
 		for (let name of names) {
-			let latestRevision=Revision.revisionWithLatest(allRevisions,name);
+			let latestRevision=Revision.revisionWithLatest(name,allRevisions);
 
 			if (!localRevision.getFileInfoByPath(name)) {
 				let index=1+remoteRevisions.indexOf(latestRevision);
@@ -147,6 +149,59 @@ class RcRepo {
 				}
 			}
 		}
+		let time=new Date()-start;
+		console.log("Time: "+(time/1000)+"s");
+	}
+
+	async sync(options) {
+		let start=new Date();
+		let localRevision=await Revision.load(this.findRepoDir());
+		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
+		let remoteRevisions=await this.loadRemoteRevisions();
+		let names=Revision.allFileNames([localRevision,baseRevision,...remoteRevisions]);
+
+		for (let name of names) {
+			let cands=baseRevision.getRevCands(name,[localRevision,...remoteRevisions]);
+			let cand=null;
+
+			if (cands.length==1)
+				cand=cands[0]
+
+			else if (cands.length>1) {
+				for (let revision of cands) {
+
+				}
+				console.log("Conflict: "+name);
+			}
+
+			if (cand) {
+				let status=cand.getStatusAgainstBase(name,baseRevision);
+				console.log(status+": "+name);
+
+				if (cand.getFileInfoByPath(name)) {
+					if (cand!=localRevision)
+						await cand.copyTo(name,localRevision);
+
+					for (let remote of remoteRevisions) {
+						if (remote!=cand)
+							await localRevision.copyTo(name,remote);
+					}
+
+					await cand.copyTo(name,baseRevision);
+					baseRevision.saveJson(this.getRepoStatusDir()+"/base-revision.json");
+				}
+
+				else {
+					for (let revision of [baseRevision,localRevision,...remoteRevisions])
+						await revision.deleteIfExists(name);
+
+					baseRevision.saveJson(this.getRepoStatusDir()+"/base-revision.json");
+				}
+			}
+		}
+
+		let time=new Date()-start;
+		console.log("Time: "+(time/1000)+"s");
 	}
 };
 

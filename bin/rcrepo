@@ -28,6 +28,10 @@ async function main() {
 			await rcRepo.fill(argv);
 			break;
 
+		case "sync":
+			await rcRepo.sync(argv);
+			break;
+
 		default:
 			console.log("rcrepo - Sync local and remote repositories of files using rclone.");
 			console.log("Usage: rcrepo <command> [options]");
@@ -37,7 +41,8 @@ async function main() {
 			console.log("  resetbase  - Make base revision from local files. Discards the old base rev.");
 			console.log("  lstatus    - Show status of local files.");
 			console.log("  status     - Show status of local and remote files.");
-			console.log("  fill       - Fill in missing files across remotes.")
+			console.log("  fill       - Fill in missing files across remotes.");
+			console.log("  sync       - Sync files.");
 			break;
 	}
 }

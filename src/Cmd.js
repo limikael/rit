@@ -26,12 +26,15 @@ class Cmd {
 			proc.stderr.on("data", this.onOutput.bind(this));
 
 			proc.on("error",(res)=>{
+				console.log(this.output);
 				reject("Proc error: "+res);
 			});
 
 			proc.on("close",(res)=>{
-				if (res!=this.expectedReturnCode)
+				if (res!=this.expectedReturnCode) {
+					console.log(this.output);
 					reject("Proc error: "+res);
+				}
 
 				else
 					resolve(this.output);

@@ -36,11 +36,16 @@ class Revision {
 	}
 
 	async copyTo(filePath, revision) {
-		await new Cmd("rclone")
-			.arg("copy")
-			.arg(this.rclonePath+"/"+filePath)
-			.arg(revision.rclonePath+"/"+path.dirname(filePath))
-			.run();
+		if (revision.rclonePath) {
+			await new Cmd("rclone")
+				.arg("copy")
+				.arg(this.rclonePath+"/"+filePath)
+				.arg(revision.rclonePath+"/"+path.dirname(filePath))
+				.run();
+		}
+
+		revision.deleteEntryIfExists(filePath);
+		revision.data.push(this.getFileInfoByPath(filePath));
 	}
 
 	saveJson(fn) {
@@ -76,9 +81,30 @@ class Revision {
 		return names;
 	}
 
-	getFileInfoByPath(path) {
+	deleteEntryIfExists(filePath) {
+		let fileInfo=this.getFileInfoByPath(filePath);
+
+		if (fileInfo)
+			this.data.splice(this.data.indexOf(fileInfo),1);
+	}
+
+	async deleteIfExists(filePath) {
+		let fileInfo=this.getFileInfoByPath(filePath);
+
+		if (fileInfo) {
+			if (this.rclonePath)
+				await new Cmd("rclone")
+					.arg("delete")
+					.arg(this.rclonePath+"/"+filePath)
+					.run();
+
+			this.data.splice(this.data.indexOf(fileInfo),1);
+		}
+	}
+
+	getFileInfoByPath(filePath) {
 		for (let fileInfo of this.data)
-			if (path==fileInfo.Path)
+			if (filePath==fileInfo.Path)
 				return fileInfo;
 
 		return null;
@@ -93,26 +119,41 @@ class Revision {
 			return "new";
 
 		else if (baseInfo && !localInfo)
+			return "deleted";
+
+		else if (!baseInfo && !localInfo)
 			return "missing";
 
-		else if (Math.abs(baseInfo.date-localInfo.date)>dateTolerance) {
+		else if (Math.abs(baseInfo.date-localInfo.date)>dateTolerance)
 			return "modified";
-		}
 
 		else return "up-to-date";
 	}
 
-	static revisionWithLatest(revisions, path) {
+	static revisionWithLatest(filePath, revisions) {
 		let latestRevision=null;
 
 		for (let revision of revisions) {
-			let info=revision.getFileInfoByPath(path);
+			let info=revision.getFileInfoByPath(filePath);
 
 			if (info)
 				latestRevision=revision;
 		}
 
 		return latestRevision;
+	}
+
+	getRevCands(filePath, revisions) {
+		let cands=[];
+
+		for (let revision of revisions) {
+			let status=revision.getStatusAgainstBase(filePath,this);
+
+			if (["deleted","new","modified"].includes(status))
+				cands.push(revision);
+		}
+
+		return cands;
 	}
 };
 
