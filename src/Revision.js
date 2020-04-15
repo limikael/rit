@@ -37,11 +37,16 @@ class Revision {
 
 	async copyTo(filePath, revision) {
 		if (revision.rclonePath) {
-			await new Cmd("rclone")
+			let dirPath=path.dirname(filePath);
+			if (dirPath==".")
+				dirPath="";
+
+			let cmd=new Cmd("rclone")
 				.arg("copy")
 				.arg(this.rclonePath+"/"+filePath)
-				.arg(revision.rclonePath+"/"+path.dirname(filePath))
-				.run();
+				.arg(revision.rclonePath+"/"+dirPath);
+
+			await cmd.run();
 		}
 
 		revision.deleteEntryIfExists(filePath);

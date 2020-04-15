@@ -1,4 +1,4 @@
-class Remote {
+/*class Remote {
 	constructor(data) {
 		this.data=data;
 	}
@@ -8,4 +8,4 @@ class Remote {
 	}
 }
 
-module.exports=Remote;
+module.exports=Remote;*/

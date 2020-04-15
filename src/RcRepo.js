@@ -31,11 +31,23 @@ class RcRepo {
 		return this.remotes;
 	}
 
-	info() {
-		console.log("Local Path:   "+this.findRepoDir());
-		console.log("Remote Paths: ");
-		for (let remote of this.getRemotes())
-			console.log("  "+remote.getRclonePath());
+	async init() {
+		let repoDir=this.findRepoDir();
+
+		if (repoDir) {
+			console.log("Already initialized: "+repoDir);
+			return;
+		}
+
+		repoDir=path.resolve(this.cwd);
+		console.log("Initializing repo in: "+repoDir);
+
+		fs.mkdirSync(repoDir+"/.rcrepo");
+
+		let localRevision=await Revision.load(this.findRepoDir());
+		localRevision.saveJson(this.getRepoStatusDir()+"/base-revision.json");
+
+		fs.writeFileSync(this.getRepoStatusDir()+"/remote-paths.json","[]");
 	}
 
 	findRepoDir() {
@@ -57,26 +69,12 @@ class RcRepo {
 	}
 
 	getRepoStatusDir() {
-		return this.findRepoDir()+"/.rcrepo";
-	}
+		let repoDir=this.findRepoDir();
 
-	async makeBase() {
-		let localRevision=await Revision.load(this.findRepoDir());
-		localRevision.saveJson(this.getRepoStatusDir()+"/base-revision.json");
-	}
+		if (!repoDir)
+			throw new Error("No repo found here.");
 
-	async localStatus(options) {
-		let localRevision=await Revision.load(this.findRepoDir());
-		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
-		let names=Revision.allFileNames([localRevision,baseRevision]);
-
-		for (let name of names) {
-			let status=localRevision.getStatusAgainstBase(name,baseRevision);
-			if (status!="up-to-date" || options.all)
-				console.log("  "+this.statusChars[status]+"  "+name);
-		}
-
-		console.log("Files: "+names.length);
+		return repoDir+"/.rcrepo";
 	}
 
 	async loadRemoteRevisions() {
@@ -88,6 +86,18 @@ class RcRepo {
 	}
 
 	async status(options) {
+		let repoDir=this.findRepoDir();
+
+		if (!repoDir) {
+			console.log("No repo.");
+			return;
+		}
+
+		console.log("Local Path: "+repoDir);
+		console.log("Remote Paths: ");
+		for (let remote of this.getRemotes())
+			console.log("  "+remote.getRclonePath());
+
 		let start=new Date();
 		let localRevision=await Revision.load(this.findRepoDir());
 		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
@@ -119,6 +129,61 @@ class RcRepo {
 
 		let time=new Date()-start;
 		console.log("Files: "+names.length+", Time: "+(time/1000)+"s");
+	}
+
+	async addRemote(args) {
+		if (args._.length!=1)
+			throw new Error("Usage: addremote <remote:path>")
+
+		let argRemote=args._[0];
+		let json=fs.readFileSync(this.getRepoStatusDir()+"/remote-paths.json")
+		let remotes=JSON.parse(json);
+
+		if (remotes.includes(argRemote))
+			throw new Error("Already added: "+argRemote);
+
+		let localRevision=await Revision.load(this.findRepoDir());
+		let remoteRevision=await Revision.load(argRemote);
+		let allRevisions=[localRevision,remoteRevision];
+		let names=Revision.allFileNames(allRevisions);
+
+		for (let name of names) {
+			let latestRevision=Revision.revisionWithLatest(name,allRevisions);
+
+			if (!localRevision.getFileInfoByPath(name)) {
+				console.log("  <- "+name);
+
+				if (!args["dry-run"])
+					await latestRevision.copyTo(name,localRevision);
+			}
+
+			if (!remoteRevision.getFileInfoByPath(name)) {
+				console.log("  -> "+name);
+
+				if (!args["dry-run"])
+					await latestRevision.copyTo(name,remoteRevision);
+			}
+		}
+
+		if (!args["dry-run"]) {
+			remotes.push(argRemote);
+			fs.writeFileSync(this.getRepoStatusDir()+"/remote-paths.json",JSON.stringify(remotes));
+		}
+	}
+
+	async rmRemote(args) {
+		if (args._.length!=1)
+			throw new Error("Usage: addremote <remote:path>")
+
+		let argRemote=args._[0];
+		let json=fs.readFileSync(this.getRepoStatusDir()+"/remote-paths.json")
+		let remotes=JSON.parse(json);
+
+		if (!remotes.includes(argRemote))
+			throw new Error("No such remote: "+argRemote);
+
+		remotes.splice(remotes.indexOf(argRemote),1);
+		fs.writeFileSync(this.getRepoStatusDir()+"/remote-paths.json",JSON.stringify(remotes));
 	}
 
 	async fill(options) {

@@ -5,30 +5,28 @@ const RcRepo=require("../src/RcRepo");
 
 async function main() {
 	let argv=minimist(process.argv.slice(2),{
-		"boolean": ["all","dry-run"]
+		"boolean": ["dry-run","local"]
 	});
 
 	let rcRepo=new RcRepo();
+	let cmd=argv._[0];
+	argv._=argv._.slice(1);
 
-	switch (argv._[0]) {
-		case "info":
-			await rcRepo.info();
+	switch (cmd) {
+		case "init":
+			await rcRepo.init(argv);
 			break;
 
-		case "mkbase":
-			await rcRepo.makeBase();
+		case "addremote":
+			await rcRepo.addRemote(argv);
 			break;
 
-		case "lstatus":
-			await rcRepo.localStatus(argv);
+		case "rmremote":
+			await rcRepo.rmRemote(argv);
 			break;
 
 		case "status":
 			await rcRepo.status(argv);
-			break;
-
-		case "fill":
-			await rcRepo.fill(argv);
 			break;
 
 		case "sync":
@@ -40,12 +38,11 @@ async function main() {
 			console.log("Usage: rcrepo <command> [options]");
 			console.log("");
 			console.log("Commands:");
-			console.log("  info       - Show info about local repo.");
-			console.log("  resetbase  - Make base revision from local files. Discards the old base rev.");
-			console.log("  lstatus    - Show status of local files.");
-			console.log("  status     - Show status of local and remote files.");
-			console.log("  fill       - Fill in missing files across remotes.");
-			console.log("  sync       - Sync files.");
+			console.log("  init                      - Create local repo.");
+			console.log("  addremote <remote:path>   - Initialize and sync remote path.")
+			console.log("  rmremote <remote:path>    - Remove remote path.")
+			console.log("  status                    - Show status of local and remote files.");
+			console.log("  sync                      - Sync files.");
 			break;
 	}
 }

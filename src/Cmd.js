@@ -23,7 +23,7 @@ class Cmd {
 			let proc=child_process.spawn(this.cmd,this.args);
 
 			proc.stdout.on("data", this.onOutput.bind(this));
-			proc.stderr.on("data", this.onOutput.bind(this));
+			//proc.stderr.on("data", this.onOutput.bind(this));
 
 			proc.on("error",(res)=>{
 				console.log(this.output);
@@ -40,6 +40,10 @@ class Cmd {
 					resolve(this.output);
 			});
 		});
+	}
+
+	getCmdLine() {
+		return [this.cmd,...this.args].join(" ");
 	}
 }
 
