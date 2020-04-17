@@ -210,8 +210,10 @@ class RcRepo {
 				console.log("Conflict: "+name);
 				for (let revision of cands) {
 					let status=revision.getStatusAgainstBase(name,baseRevision);
-					console.log("  - "+status+" at "+revision.label);
+					console.log("  1. "+status+" at "+revision.label);
 				}
+				console.log("  How do you want to resolve? ")
+
 			}
 
 			if (cand) {
