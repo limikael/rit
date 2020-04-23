@@ -3,6 +3,7 @@ const path=require("path");
 const Revision=require("./Revision");
 const StringUtil=require("./StringUtil");
 const RitError=require("./RitError");
+const Cmd=require("./Cmd");
 
 class RcRepo {
 	constructor() {
@@ -106,7 +107,13 @@ class RcRepo {
 		return haveDirty;
 	}
 
-	async status(options) {
+	async status(args) {
+		let rcloneVersion=await new Cmd("rclone")
+			.arg("version")
+			.run();
+
+		console.log("Backend: "+rcloneVersion.split("\n")[0]);
+
 		let repoDir=this.findRepoDir();
 
 		if (!repoDir)
@@ -117,8 +124,11 @@ class RcRepo {
 		for (let remote of this.getRemotes())
 			console.log("  "+remote);
 
+		if (!this.getRemotes())
+			console.log("  (no remote paths)");
+
 		console.log("");
-		console.log("Files:");
+		console.log("Modified Files:");
 
 		let start=new Date();
 		let localRevision=await Revision.load(this.findRepoDir());
@@ -126,8 +136,12 @@ class RcRepo {
 		let remoteRevisions=await this.loadRemoteRevisions();
 		let names=Revision.allFileNames([localRevision,baseRevision,...remoteRevisions]);
 
+		let numModified=0;
 		for (let name of names) {
 			let cands=baseRevision.getRevCands(name,[localRevision,...remoteRevisions]);
+
+			if (cands.length)
+				numModified++;
 
 			if (cands.length==1) {
 				let status=cands[0].getStatusAgainstBase(name,baseRevision);
@@ -139,9 +153,12 @@ class RcRepo {
 			}
 		}
 
+		if (!numModified)
+			console.log("  (no modified files)");
+
 		let time=new Date()-start;
 		console.log("");
-		console.log("Total Files: "+names.length+", Time: "+(time/1000)+"s");
+		console.log("Modified Files: "+numModified+", Total Files: "+names.length+", Time: "+(time/1000)+"s");
 	}
 
 	async addRemote(args) {
@@ -164,10 +181,12 @@ class RcRepo {
 
 		for (let name of names) {
 			if (!remoteRevision.getFileInfoByPath(name)) {
-				console.log("  -> "+name);
+				console.log("Missing: "+name);
 
-				if (!args["dry-run"])
+				if (!args["dry-run"]) {
+					console.log("  Uploading to: "+argRemote);
 					await localRevision.copyTo(name,remoteRevision);
+				}
 			}
 		}
 
@@ -192,7 +211,7 @@ class RcRepo {
 		fs.writeFileSync(this.getRepoStatusDir()+"/remote-paths.json",JSON.stringify(remotes));
 	}
 
-	async sync(options) {
+	async sync(args) {
 		let start=new Date();
 		let localRevision=await Revision.load(this.findRepoDir());
 		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
@@ -222,24 +241,37 @@ class RcRepo {
 
 			if (cand) {
 				let status=cand.getStatusAgainstBase(name,baseRevision);
-				console.log(status+": "+name);
+				console.log(StringUtil.ucFirst(status)+": "+name);
 
 				if (cand.getFileInfoByPath(name)) {
-					if (cand!=localRevision)
-						await cand.copyTo(name,localRevision);
+					if (!args["dry-run"]) {
+						if (cand!=localRevision) {
+							console.log("  Downloading from: "+localRevision.label);
+							await cand.copyTo(name,localRevision);
+						}
 
-					for (let remote of remoteRevisions) {
-						if (remote!=cand)
-							await localRevision.copyTo(name,remote);
+						for (let remote of remoteRevisions) {
+							if (remote!=cand) {
+								console.log("  Uploading to: "+remote.label);
+								await localRevision.copyTo(name,remote);
+							}
+						}
+
+						await cand.copyTo(name,baseRevision);
+						baseRevision.saveJson(this.getRepoStatusDir()+"/base-revision.json");
 					}
-
-					await cand.copyTo(name,baseRevision);
-					baseRevision.saveJson(this.getRepoStatusDir()+"/base-revision.json");
 				}
 
 				else {
-					for (let revision of [baseRevision,localRevision,...remoteRevisions])
-						await revision.deleteIfExists(name);
+					for (let revision of [baseRevision,localRevision,...remoteRevisions]) {
+						if (revision.getFileInfoByPath(name)) {
+
+							if (revision!=baseRevision)
+								console.log("  Deleting from: "+revision.label);
+	
+							await revision.deleteIfExists(name);
+						}
+					}
 
 					baseRevision.saveJson(this.getRepoStatusDir()+"/base-revision.json");
 				}

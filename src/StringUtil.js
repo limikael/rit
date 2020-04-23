@@ -16,6 +16,13 @@ class StringUtil {
 
 		return prom;
 	}
+
+	static ucFirst(s) {
+		if (!s || s=="")
+			return s;
+
+		return s.substr(0,1).toUpperCase()+s.substr(1);
+	}
 }
 
 module.exports=StringUtil;
