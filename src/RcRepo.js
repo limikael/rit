@@ -246,7 +246,7 @@ class RcRepo {
 				if (cand.getFileInfoByPath(name)) {
 					if (!args["dry-run"]) {
 						if (cand!=localRevision) {
-							console.log("  Downloading from: "+localRevision.label);
+							console.log("  Downloading from: "+cand.label);
 							await cand.copyTo(name,localRevision);
 						}
 
