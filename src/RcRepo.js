@@ -1,6 +1,7 @@
 const fs=require("fs");
 const path=require("path");
 const Revision=require("./Revision");
+const StringUtil=require("./StringUtil");
 
 class RcRepo {
 	constructor() {
@@ -197,6 +198,7 @@ class RcRepo {
 		let localRevision=await Revision.load(this.findRepoDir());
 		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
 		let remoteRevisions=await this.loadRemoteRevisions();
+		let allRevisions=[localRevision,...remoteRevisions];
 		let names=Revision.allFileNames([localRevision,baseRevision,...remoteRevisions]);
 
 		for (let name of names) {
@@ -210,10 +212,13 @@ class RcRepo {
 				console.log("Conflict: "+name);
 				for (let revision of cands) {
 					let status=revision.getStatusAgainstBase(name,baseRevision);
-					console.log("  1. "+status+" at "+revision.label);
+					let idx=allRevisions.indexOf(revision);
+					console.log("  "+(idx+1)+". "+status+" at "+revision.label);
 				}
-				console.log("  How do you want to resolve? ")
-
+				let res=await StringUtil.ask("  How do you want to resolve (0=keep)? ")
+				let idx=parseInt(res);
+				if (idx>0)
+					cand=cands[idx-1];
 			}
 
 			if (cand) {
