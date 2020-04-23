@@ -2,6 +2,7 @@ const fs=require("fs");
 const path=require("path");
 const Revision=require("./Revision");
 const StringUtil=require("./StringUtil");
+const RitError=require("./RitError");
 
 class RcRepo {
 	constructor() {
@@ -70,7 +71,7 @@ class RcRepo {
 		let repoDir=this.findRepoDir();
 
 		if (!repoDir)
-			throw new Error("No repo found here.");
+			throw new RitError("No repo found here.");
 
 		return repoDir+"/.rcrepo";
 	}
@@ -108,10 +109,8 @@ class RcRepo {
 	async status(options) {
 		let repoDir=this.findRepoDir();
 
-		if (!repoDir) {
-			console.log("No repo.");
-			return;
-		}
+		if (!repoDir)
+			throw new RitError("No repo here.");
 
 		console.log("Local Path: "+repoDir);
 		console.log("Remote Paths: ");
@@ -147,17 +146,17 @@ class RcRepo {
 
 	async addRemote(args) {
 		if (args._.length!=1)
-			throw new Error("Usage: addremote <remote:path>")
+			throw new RitError("Usage: addremote <remote:path>")
 
 		if (await this.haveLocalModifications())
-			throw new Error("There are local modifications, can't add remote.")
+			throw new RitError("There are local modifications, can't add remote.")
 
 		let argRemote=args._[0];
 		let json=fs.readFileSync(this.getRepoStatusDir()+"/remote-paths.json")
 		let remotes=JSON.parse(json);
 
 		if (remotes.includes(argRemote))
-			throw new Error("Already added: "+argRemote);
+			throw new RitError("Already added: "+argRemote);
 
 		let localRevision=await Revision.load(this.findRepoDir());
 		let remoteRevision=await Revision.load(argRemote);
@@ -180,14 +179,14 @@ class RcRepo {
 
 	async rmRemote(args) {
 		if (args._.length!=1)
-			throw new Error("Usage: addremote <remote:path>")
+			throw new RitError("Usage: addremote <remote:path>")
 
 		let argRemote=args._[0];
 		let json=fs.readFileSync(this.getRepoStatusDir()+"/remote-paths.json")
 		let remotes=JSON.parse(json);
 
 		if (!remotes.includes(argRemote))
-			throw new Error("No such remote: "+argRemote);
+			throw new RitError("No such remote: "+argRemote);
 
 		remotes.splice(remotes.indexOf(argRemote),1);
 		fs.writeFileSync(this.getRepoStatusDir()+"/remote-paths.json",JSON.stringify(remotes));

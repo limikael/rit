@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+
+const minimist=require('minimist');
+const RcRepo=require("../src/RcRepo");
+const RitError=require("../src/RitError");
+
+async function main() {
+	let argv=minimist(process.argv.slice(2),{
+		"boolean": ["dry-run","local"]
+	});
+
+	let rcRepo=new RcRepo();
+	let cmd=argv._[0];
+	argv._=argv._.slice(1);
+
+	try {
+		switch (cmd) {
+			case "init":
+				await rcRepo.init(argv);
+				break;
+
+			case "addremote":
+				await rcRepo.addRemote(argv);
+				break;
+
+			case "rmremote":
+				await rcRepo.rmRemote(argv);
+				break;
+
+			case "status":
+				await rcRepo.status(argv);
+				break;
+
+			case "sync":
+				await rcRepo.sync(argv);
+				break;
+
+			default:
+				console.log("rit - Sync local and remote repositories of files using rclone.");
+				console.log("Usage: rit <command> [options]");
+				console.log("");
+				console.log("Commands:");
+				console.log("  init                      - Create local repo.");
+				console.log("  addremote <remote:path>   - Initialize and sync remote path.")
+				console.log("  rmremote <remote:path>    - Remove remote path.")
+				console.log("  status                    - Show status of local and remote files.");
+				console.log("  sync                      - Sync files.");
+				break;
+		}
+	}
+
+	catch (err) {
+		if (err instanceof RitError) {
+			console.error('\x1b[33m%s\x1b[0m',err.message);
+		}
+
+		else {
+			console.log(err);
+		}
+	}
+}
+
+main();
