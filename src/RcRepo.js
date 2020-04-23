@@ -42,7 +42,7 @@ class RcRepo {
 		repoDir=path.resolve(this.cwd);
 		console.log("Initializing repo in: "+repoDir);
 
-		fs.mkdirSync(repoDir+"/.rcrepo");
+		fs.mkdirSync(repoDir+"/.rit");
 
 		let localRevision=await Revision.load(this.findRepoDir());
 		localRevision.saveJson(this.getRepoStatusDir()+"/base-revision.json");
@@ -54,7 +54,7 @@ class RcRepo {
 		let p=path.resolve(this.cwd);
 
 		while (1) {
-			if (fs.existsSync(p+"/.rcrepo"))
+			if (fs.existsSync(p+"/.rit"))
 				return p;
 
 			if (p==path.resolve(p+"/.."))
@@ -74,7 +74,7 @@ class RcRepo {
 		if (!repoDir)
 			throw new RitError("No repo found here.");
 
-		return repoDir+"/.rcrepo";
+		return repoDir+"/.rit";
 	}
 
 	async loadRemoteRevisions() {

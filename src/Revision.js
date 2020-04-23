@@ -59,7 +59,7 @@ class Revision {
 
 	filterData() {
 		let newData=[];
-		let m=new Minimatch(".rcrepo/*");
+		let m=new Minimatch(".rit/*");
 
 		for (let dataItem of this.data) {
 			if (!dataItem.IsDir && !m.match(dataItem.Path))
