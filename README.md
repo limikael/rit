@@ -1,5 +1,5 @@
-Rcrepo
-------
+Rit
+---
 
 Repo like frontend for rclone.
 
@@ -9,16 +9,13 @@ Howto:
   https://rclone.org/drive/
 
 2. Init a local repo, run:
-  rcrepo init
+  rit init
 
-3. Init remote revisions, run:
-  rcrepo initremote remote:path
-  rcrepo initremote remote:path --dry-run
+3. Add a remote:
+  rit addremote remote:path
 
 4. Check status
-  rcrepo status
-  rcrepo status --local
+  rit status
 
 5. Sync!
-  rcrepo sync
-  rcrepo sync --dry-run
+  rit sync

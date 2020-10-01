@@ -9,12 +9,16 @@ function escapeShellArg (arg) {
 }
 
 class Revision {
-	static async load(rclonePath) {
+	static async load(rclonePath, ignores) {
+		if (ignores===undefined)
+			throw new Error("Ignores should be an array.");
+
 		let json=await new Cmd("rclone")
 			.arg("lsjson","-R",rclonePath)
 			.run();
 
 		let revision=new Revision();
+		revision.ignores=ignores;
 		revision.data=JSON.parse(json);
 		revision.filterData();
 		revision.prepareData();
@@ -24,9 +28,13 @@ class Revision {
 		return revision;
 	}
 
-	static loadJson(fn) {
+	static loadJson(fn, ignores) {
+		if (ignores===undefined)
+			throw new Error("Ignores should be an array.");
+
 		let json=fs.readFileSync(fn);
 		let revision=new Revision();
+		revision.ignores=ignores;
 		revision.data=JSON.parse(json);
 		revision.filterData();
 		revision.prepareData();
@@ -60,10 +68,22 @@ class Revision {
 	filterData() {
 		let newData=[];
 		let m=new Minimatch(".rit/*");
+		let mi=[];
+
+		for (let ignoreExpr of this.ignores)
+			mi.push(new Minimatch(ignoreExpr));
 
 		for (let dataItem of this.data) {
-			if (!dataItem.IsDir && !m.match(dataItem.Path))
-				newData.push(dataItem)
+			if (!dataItem.IsDir && !m.match(dataItem.Path)) {
+				let use=true;
+
+				for (let i of mi)
+					if (i.match(dataItem.Path))
+						use=false;
+
+				if (use)
+					newData.push(dataItem)
+			}
 		}
 
 		this.data=newData;

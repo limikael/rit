@@ -44,7 +44,7 @@ class RcRepo {
 
 		fs.mkdirSync(repoDir+"/.rit");
 
-		let localRevision=await Revision.load(this.findRepoDir());
+		let localRevision=await this.loadLocalRevision();
 		localRevision.saveJson(this.getRepoStatusDir()+"/base-revision.json");
 
 		fs.writeFileSync(this.getRepoStatusDir()+"/remote-paths.json","[]");
@@ -64,10 +64,6 @@ class RcRepo {
 		}
 	}
 
-	async loadLocalRevision() {
-		return await Revision.load(this.findRepoDir());
-	}
-
 	getRepoStatusDir() {
 		let repoDir=this.findRepoDir();
 
@@ -77,10 +73,33 @@ class RcRepo {
 		return repoDir+"/.rit";
 	}
 
+	getFilesToIgnore() {
+		let repoDir=this.findRepoDir();
+
+		if (!repoDir)
+			throw new RitError("No repo found here.");
+
+		if (fs.existsSync(repoDir+"/.ritignore")) {
+			let exprs=String(fs.readFileSync(repoDir+"/.ritignore")).split("\n");
+			exprs=exprs.filter(x=>x);
+			return exprs;
+		}
+
+		return [];
+	}
+
+	loadBaseRevision() {
+		return Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json",this.getFilesToIgnore());
+	}
+
+	async loadLocalRevision() {
+		return await Revision.load(this.findRepoDir(),this.getFilesToIgnore());
+	}
+
 	async loadRemoteRevisions() {
 		let remoteRevisions=[];
 		for (let remote of this.getRemotes())
-			remoteRevisions.push(Revision.load(remote));
+			remoteRevisions.push(Revision.load(remote,this.getFilesToIgnore()));
 
 		return await Promise.all(remoteRevisions);
 	}
@@ -93,8 +112,8 @@ class RcRepo {
 			return;
 		}
 
-		let localRevision=await Revision.load(this.findRepoDir());
-		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
+		let localRevision=await this.loadLocalRevision();
+		let baseRevision=await this.loadBaseRevision();
 		let names=Revision.allFileNames([localRevision,baseRevision]);
 
 		let haveDirty=false;
@@ -131,8 +150,8 @@ class RcRepo {
 		console.log("Modified Files:");
 
 		let start=new Date();
-		let localRevision=await Revision.load(this.findRepoDir());
-		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
+		let localRevision=await this.loadLocalRevision();
+		let baseRevision=await this.loadBaseRevision();
 		let remoteRevisions=await this.loadRemoteRevisions();
 		let names=Revision.allFileNames([localRevision,baseRevision,...remoteRevisions]);
 
@@ -175,8 +194,8 @@ class RcRepo {
 		if (remotes.includes(argRemote))
 			throw new RitError("Already added: "+argRemote);
 
-		let localRevision=await Revision.load(this.findRepoDir());
-		let remoteRevision=await Revision.load(argRemote);
+		let localRevision=await this.loadLocalRevision();
+		let remoteRevision=await Revision.load(argRemote, this.getFilesToIgnore());
 		let names=Revision.allFileNames([localRevision]);
 
 		for (let name of names) {
@@ -213,8 +232,8 @@ class RcRepo {
 
 	async sync(args) {
 		let start=new Date();
-		let localRevision=await Revision.load(this.findRepoDir());
-		let baseRevision=Revision.loadJson(this.getRepoStatusDir()+"/base-revision.json");
+		let localRevision=await this.loadLocalRevision();
+		let baseRevision=await this.loadBaseRevision();
 		let remoteRevisions=await this.loadRemoteRevisions();
 		let allRevisions=[localRevision,...remoteRevisions];
 		let names=Revision.allFileNames([localRevision,baseRevision,...remoteRevisions]);
